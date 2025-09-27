@@ -1,0 +1,130 @@
+'use client';
+
+import React from 'react';
+import { Handle, Position, NodeProps } from '@xyflow/react';
+import { cn } from '@/lib/utils';
+import { WorkflowNode, NodeStatus } from '@/types/workflow';
+
+interface BaseNodeProps extends NodeProps<WorkflowNode> {
+  icon: React.ReactNode;
+  color: string;
+  children?: React.ReactNode;
+}
+
+const safeStringify = (obj: any): string => {
+  const cache = new Set();
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (cache.has(value)) {
+        return '[Circular]';
+      }
+      cache.add(value);
+    }
+    return value;
+  }, 2);
+};
+
+const statusStyles = {
+  idle: 'border-slate-200 bg-white shadow-sm',
+  running: 'border-blue-400 bg-white shadow-md ring-2 ring-blue-100',
+  completed: 'border-green-400 bg-white shadow-md ring-2 ring-green-100',
+  error: 'border-red-400 bg-white shadow-md ring-2 ring-red-100',
+};
+
+const statusIcons = {
+  idle: null,
+  running: (
+    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse absolute -top-1 -right-1 border border-white" />
+  ),
+  completed: (
+    <div className="w-2 h-2 bg-green-400 rounded-full absolute -top-1 -right-1 border border-white" />
+  ),
+  error: (
+    <div className="w-2 h-2 bg-red-400 rounded-full absolute -top-1 -right-1 border border-white" />
+  ),
+};
+
+export default function BaseNode({
+  data,
+  selected,
+  icon,
+  color,
+  children,
+}: BaseNodeProps) {
+  const status = data.status || 'idle';
+
+  return (
+        <div
+      className={cn(
+        'relative min-w-[200px] rounded-lg border transition-all duration-200',
+        'bg-white hover:shadow-sm',
+      {/* Status indicator */}
+      {statusIcons[status]}
+
+      {/* Input handle */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-4 h-4 border-2 border-indigo-400 bg-white rounded-full shadow-md hover:bg-indigo-50 transition-colors duration-200"
+        style={{ left: -8 }}
+      />
+
+      {/* Node header */}
+      <div className="flex items-center space-x-2 mb-3">
+        <div
+          className={cn(
+            'flex items-center justify-center w-8 h-8 rounded-lg text-white',
+            color
+          )}
+        >
+          {icon}
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-sm text-slate-900">{data.label}</h3>
+          {data.description && (
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">{data.description}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Node content */}
+      {children}
+
+      {/* Error display */}
+      {data.errors && data.errors.length > 0 && (
+        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-md text-xs text-red-700">
+          <div className="flex items-center space-x-2 mb-1">
+            <span className="text-red-500">⚠</span>
+            <span className="font-semibold">Errors:</span>
+          </div>
+          {data.errors.map((error, index) => (
+            <div key={index} className="ml-4">{error}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Output display */}
+      {data.outputs && (
+        <div className="mt-3 p-2 bg-slate-50 border border-slate-200 rounded-md text-xs">
+          <div className="flex items-center space-x-2 mb-2">
+            <span className="text-green-500">📤</span>
+            <span className="font-semibold text-slate-700">Output:</span>
+          </div>
+          <pre className="whitespace-pre-wrap text-xs text-slate-600 leading-relaxed bg-white/50 p-2 rounded-lg border border-slate-100">
+            {typeof data.outputs === 'string' 
+              ? data.outputs 
+              : JSON.stringify(data.outputs, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      {/* Output handle */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-4 h-4 border-2 border-indigo-400 bg-white rounded-full shadow-md hover:bg-indigo-50 transition-colors duration-200"
+        style={{ right: -8 }}
+      />
+    </div>
+  );
+}

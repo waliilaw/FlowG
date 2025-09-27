@@ -1,0 +1,56 @@
+import React, { useCallback } from 'react';
+import ReactFlow, { 
+  Controls, 
+  Background, 
+  applyNodeChanges, 
+  applyEdgeChanges,
+  Connection,
+  Edge,
+  EdgeChange,
+  Node,
+  NodeChange,
+} from 'reactflow';
+import { useWorkflowStore } from '@/store/workflow';
+
+export function WorkflowCanvas() {
+  // Store hooks
+  const nodes = useWorkflowStore((state) => state.nodes);
+  const edges = useWorkflowStore((state) => state.edges);
+  const onNodesChange = useWorkflowStore((state) => state.onNodesChange);
+  const onEdgesChange = useWorkflowStore((state) => state.onEdgesChange);
+  const onConnect = useWorkflowStore((state) => state.onConnect);
+
+  // Event handlers
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    console.log('Node changes:', changes);
+    onNodesChange(changes);
+  }, [onNodesChange]);
+
+  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    onEdgesChange(changes);
+  }, [onEdgesChange]);
+
+  const handleConnect = useCallback((connection: Connection) => {
+    onConnect(connection);
+  }, [onConnect]);
+
+  // Log nodes on render
+  console.log('Rendering Canvas with nodes:', nodes);
+  console.log('Rendering Canvas with edges:', edges);
+
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
+        onConnect={handleConnect}
+        fitView
+      >
+        <Controls />
+        <Background gap={12} size={1} />
+      </ReactFlow>
+    </div>
+  );
+}

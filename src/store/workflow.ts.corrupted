@@ -1,0 +1,574 @@
+import { create } from 'zustand';import { creimport { DAService } from '@/lib/0g/da';
+
+import {import { ethers } from 'ethers';te } from "zustand";
+
+  Node,import { 
+
+  Edge,  Node, 
+
+  addEdge,  Edge,
+
+  applyNodeChanges,  addEdge,
+
+  applyEdgeChanges,  applyNodeChanges,
+
+  NodeChange,  applyEdgeChanges,
+
+  EdgeChange,  NodeChange,
+
+  Connection  EdgeChange,
+
+} from '@xyflow/react';  Connection
+
+import { WorkflowNode, NodeType, NodeStatus } from '@/types/workflow';} from "@xyflow/react";
+
+import { ethers } from 'ethers';import { WorkflowNode, NodeType, NodeStatus } from "@/types/workflow";
+
+import { DAService } from '@/lib/0g/da';import { DAService } from "@/lib/0g/da-service";
+
+
+
+// Basic state interface// Basic state interface
+
+export interface WorkflowState {export interface WorkflowState {
+
+  nodes: WorkflowNode[];  nodes: WorkflowNode[];
+
+  edges: Edge[];  edges: Edge[];
+
+  isExecuting: boolean;  isExecuting: boolean;
+
+  executionLog: ExecutionLogEntry[];  executionLog: ExecutionLogEntry[];
+
+  currentWorkflow?: SavedWorkflow;  currentWorkflow?: SavedWorkflow;
+
+}}
+
+
+
+// Execution log entry interface// Execution log entry interface
+
+export interface ExecutionLogEntry {export interface ExecutionLogEntry {
+
+  nodeId?: string;  nodeId?: string;
+
+  status?: NodeStatus;  status?: NodeStatus;
+
+  message: string;  message: string;
+
+  timestamp: number;  timestamp: number;
+
+  data?: any;  data?: any;
+
+}}
+
+
+
+// Saved workflow interface// Saved workflow interface
+
+export interface SavedWorkflow {export interface SavedWorkflow {
+
+  id: string;  id: string;
+
+  nodes: WorkflowNode[];  nodes: WorkflowNode[];
+
+  edges: Edge[];  edges: Edge[];
+
+  latestVersion: {  latestVersion: {
+
+    hash: string;    hash: string;
+
+    timestamp: number;    timestamp: number;
+
+  };  };
+
+}}
+
+
+
+// DAService interface// DAService interface
+
+export interface DAServiceState {export interface DAServiceState {
+
+  daService: DAService;  daService: DAService;
+
+}}
+
+
+
+// Workflow version info type// Workflow version info type
+
+export interface WorkflowVersionInfo {export interface WorkflowVersionInfo {
+
+  id: string;  id: string;
+
+  version: string;  version: string;
+
+  hash: string;  hash: string;
+
+  timestamp: number;  timestamp: number;
+
+  metadata?: {  metadata?: {
+
+    author?: string;    author?: string;
+
+    description?: string;    description?: string;
+
+    changes?: string[];    changes?: string[];
+
+  };  };
+
+}}
+
+
+
+// Version control operations// Version control operations
+
+export interface VersionOps {export interface VersionOps {
+
+  saveVersion: (name?: string, description?: string) => Promise<string>;  saveVersion: (name?: string, description?: string) => Promise<string>;
+
+  loadVersion: (hash: string) => Promise<void>;  loadVersion: (hash: string) => Promise<void>;
+
+  rollbackToVersion: (hash: string) => Promise<void>;  rollbackToVersion: (hash: string) => Promise<void>;
+
+  cloneWorkflow: (workflowId: string) => Promise<string>;  cloneWorkflow: (workflowId: string) => Promise<string>;
+
+  getVersionHistory: () => Promise<WorkflowVersionInfo[]>;  getVersionHistory: () => Promise<WorkflowVersionInfo[]>;
+
+}}
+
+
+
+// Store interface// Store interface
+
+export interface WorkflowStore extends WorkflowState, DAServiceState, VersionOps {export interface WorkflowStore extends WorkflowState, DAServiceState, VersionOps {
+
+  // Node operations  // Node operations
+
+  addNode: (node: WorkflowNode) => void;  addNode: (node: WorkflowNode) => void;
+
+  removeNode: (nodeId: string) => void;  removeNode: (nodeId: string) => void;
+
+  updateNode: (nodeId: string, updates: Partial<WorkflowNode['data']>) => void;  updateNode: (nodeId: string, updates: Partial<WorkflowNode['data']>) => void;
+
+  onNodesChange: (changes: NodeChange[]) => void;  onNodesChange: (changes: NodeChange[]) => void;
+
+    
+
+  // Edge operations  // Edge operations
+
+  addEdge: (edge: Edge) => void;  addEdge: (edge: Edge) => void;
+
+  removeEdge: (edgeId: string) => void;  removeEdge: (edgeId: string) => void;
+
+  onEdgesChange: (changes: EdgeChange[]) => void;  onEdgesChange: (changes: EdgeChange[]) => void;
+
+  onConnect: (connection: Connection) => void;  onConnect: (connection: Connection) => void;
+
+    
+
+  // Execution operations  // Execution operations
+
+  executeWorkflow: (inputs?: Record<string, any>) => Promise<void>;  executeWorkflow: (inputs?: Record<string, any>) => Promise<void>;
+
+  startExecution: () => void;  startExecution: () => void;
+
+  stopExecution: () => void;  stopExecution: () => void;
+
+  updateNodeStatus: (nodeId: string, status: NodeStatus, message?: string, data?: any) => void;  updateNodeStatus: (nodeId: string, status: NodeStatus, message?: string, data?: any) => void;
+
+  addExecutionLog: (entry: ExecutionLogEntry) => void;  addExecutionLog: (entry: ExecutionLogEntry) => void;
+
+  clearExecutionLog: () => void;  clearExecutionLog: () => void;
+
+    
+
+  // Workflow operations  // Workflow operations
+
+  clearWorkflow: () => void;  clearWorkflow: () => void;
+
+  loadWorkflow: (workflow: { nodes: WorkflowNode[]; edges: Edge[] }) => void;  loadWorkflow: (workflow: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
+
+  getWorkflowData: () => { nodes: WorkflowNode[]; edges: Edge[] };  getWorkflowData: () => { nodes: WorkflowNode[]; edges: Edge[] };
+
+  saveWorkflow: (name: string) => Promise<void>;  saveWorkflow: (name: string) => Promise<void>;
+
+}}
+
+
+
+// Create the storeexport const useWorkflowStore = create<WorkflowStore>((set, get) => ({
+
+export const useWorkflowStore = create<WorkflowStore>((set, get) => {  // Initial state
+
+  // Initialize services  nodes: [],
+
+  const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_0G_RPC_URL);  edges: [],
+
+  const daService = new DAService(provider);  isExecuting: false,
+
+  executionLog: [],
+
+  return {  daService: new DAService(),
+
+    // Initial state  
+
+    nodes: [],  // Node operations
+
+    edges: [],  addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
+
+    isExecuting: false,  
+
+    executionLog: [],  removeNode: (nodeId) => set((state) => ({
+
+    daService,    nodes: state.nodes.filter((n) => n.id !== nodeId),
+
+        edges: state.edges.filter(
+
+    // Node operations      (e) => e.source !== nodeId && e.target !== nodeId
+
+    addNode: (node: WorkflowNode) =>     ),
+
+      set((state) => ({ nodes: [...state.nodes, node] })),  })),
+
+      
+
+    removeNode: (nodeId: string) =>   updateNode: (nodeId, updates) => set((state) => ({
+
+      set((state) => ({    nodes: state.nodes.map((node) =>
+
+        nodes: state.nodes.filter((n) => n.id !== nodeId),      node.id === nodeId
+
+        edges: state.edges.filter(        ? { ...node, data: { ...node.data, ...updates } }
+
+          (e) => e.source !== nodeId && e.target !== nodeId        : node
+
+        ),    ),
+
+      })),  })),
+
+      
+
+    updateNode: (nodeId: string, updates: Partial<WorkflowNode['data']>) =>   onNodesChange: (changes) => set((state) => ({
+
+      set((state) => ({    nodes: applyNodeChanges(changes, state.nodes) as WorkflowNode[],
+
+        nodes: state.nodes.map((node) =>  })),
+
+          node.id === nodeId
+
+            ? { ...node, data: { ...node.data, ...updates } }  // Edge operations  
+
+            : node  addEdge: (edge) => set((state) => ({ edges: [...state.edges, edge] })),
+
+        ),  
+
+      })),  removeEdge: (edgeId) => set((state) => ({
+
+        edges: state.edges.filter((e) => e.id !== edgeId),
+
+    onNodesChange: (changes: NodeChange[]) =>   })),
+
+      set((state) => ({  
+
+        nodes: applyNodeChanges(changes, state.nodes) as WorkflowNode[],  onEdgesChange: (changes) => set((state) => ({
+
+      })),    edges: applyEdgeChanges(changes, state.edges),
+
+  })),
+
+    // Edge operations    
+
+    addEdge: (edge: Edge) =>   onConnect: (connection) => {
+
+      set((state) => ({ edges: [...state.edges, edge] })),    const edge: Edge = {
+
+          id: `e${connection.source}-${connection.target}`,
+
+    removeEdge: (edgeId: string) =>       source: connection.source,
+
+      set((state) => ({      target: connection.target,
+
+        edges: state.edges.filter((e) => e.id !== edgeId),    };
+
+      })),    get().addEdge(edge);
+
+      },
+
+    onEdgesChange: (changes: EdgeChange[]) => 
+
+      set((state) => ({  // Execution operations
+
+        edges: applyEdgeChanges(changes, state.edges),  executeWorkflow: async (inputs) => {
+
+      })),    get().startExecution();
+
+        try {
+
+    onConnect: (connection: Connection) => {      // Here we would normally call executionEngine.execute
+
+      const edge: Edge = {      // For now we'll just simulate the execution
+
+        id: `e${connection.source}-${connection.target}`,      const nodes = get().nodes;
+
+        source: connection.source,      for (const node of nodes) {
+
+        target: connection.target,        get().updateNodeStatus(node.id, 'running');
+
+      };        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate work
+
+      get().addEdge(edge);        get().updateNodeStatus(node.id, 'completed');
+
+    },      }
+
+    } catch (error: any) {
+
+    // Execution operations      get().addExecutionLog({
+
+    executeWorkflow: async (inputs?: Record<string, any>) => {        message: `Execution failed: ${error?.message || 'Unknown error'}`,
+
+      get().startExecution();        timestamp: Date.now()
+
+      try {      });
+
+        // Here we would normally call executionEngine.execute    }
+
+        // For now we'll just simulate the execution    get().stopExecution();
+
+        const nodes = get().nodes;  },
+
+        for (const node of nodes) {  
+
+          get().updateNodeStatus(node.id, 'running');  startExecution: () => set({ isExecuting: true }),
+
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate work  stopExecution: () => set({ isExecuting: false }),
+
+          get().updateNodeStatus(node.id, 'completed');  
+
+        }  updateNodeStatus: (nodeId, status, message, data) => set((state) => ({
+
+      } catch (error: unknown) {    nodes: state.nodes.map((node) =>
+
+        const msg = error instanceof Error ? error.message : 'Unknown error';      node.id === nodeId
+
+        get().addExecutionLog({        ? {
+
+          message: `Execution failed: ${msg}`,            ...node,
+
+          timestamp: Date.now()            data: {
+
+        });              ...node.data,
+
+      }              status,
+
+      get().stopExecution();              statusMessage: message,
+
+    },              executionData: data,
+
+                },
+
+    startExecution: () => set({ isExecuting: true }),          }
+
+            : node
+
+    stopExecution: () => set({ isExecuting: false }),    ),
+
+      })),
+
+    updateNodeStatus: (nodeId: string, status: NodeStatus, message?: string, data?: any) =>   
+
+      set((state) => ({  addExecutionLog: (entry) =>
+
+        nodes: state.nodes.map((node) =>    set((state) => ({
+
+          node.id === nodeId      executionLog: [...state.executionLog, entry],
+
+            ? {    })),
+
+                ...node,  
+
+                data: {  clearExecutionLog: () => set({ executionLog: [] }),
+
+                  ...node.data,
+
+                  status,  // Workflow operations
+
+                  statusMessage: message,  clearWorkflow: () => set({ nodes: [], edges: [], executionLog: [] }),
+
+                  executionData: data,  
+
+                },  loadWorkflow: (workflow) => set({
+
+              }    nodes: workflow.nodes,
+
+            : node    edges: workflow.edges,
+
+        ),    executionLog: [],
+
+      })),  }),
+
+      
+
+    addExecutionLog: (entry: ExecutionLogEntry) =>  getWorkflowData: () => {
+
+      set((state) => ({    const { nodes, edges } = get();
+
+        executionLog: [...state.executionLog, entry],    return { nodes, edges };
+
+      })),  },
+
+      
+
+    clearExecutionLog: () => set({ executionLog: [] }),  saveWorkflow: async (name) => {
+
+    const workflowData = get().getWorkflowData();
+
+    // Workflow operations    const versionHash = await get().daService.storeWorkflow({
+
+    clearWorkflow: () => set({ nodes: [], edges: [], executionLog: [] }),      id: name,
+
+          nodes: workflowData.nodes,
+
+    loadWorkflow: (workflow: { nodes: WorkflowNode[]; edges: Edge[] }) =>       edges: workflowData.edges,
+
+      set({      timestamp: Date.now(),
+
+        nodes: workflow.nodes,    });
+
+        edges: workflow.edges,    set({
+
+        executionLog: [],      currentWorkflow: {
+
+      }),        id: name,
+
+            nodes: workflowData.nodes,
+
+    getWorkflowData: () => {        edges: workflowData.edges,
+
+      const { nodes, edges } = get();        latestVersion: {
+
+      return { nodes, edges };          hash: versionHash,
+
+    },          timestamp: Date.now(),
+
+            },
+
+    saveWorkflow: async (name: string) => {      },
+
+      const workflowData = get().getWorkflowData();    });
+
+      const blob = new Blob([JSON.stringify(workflowData)], { type: 'application/json' });  },
+
+      const hash = await get().daService.submitBlob(blob);
+
+  // Version control operations
+
+      set({  saveVersion: async (name, description) => {
+
+        currentWorkflow: {    const workflowData = get().getWorkflowData();
+
+          id: name,    const versionHash = await get().daService.storeVersion({
+
+          nodes: workflowData.nodes,      workflowId: get().currentWorkflow?.id || 'temp',
+
+          edges: workflowData.edges,      data: workflowData,
+
+          latestVersion: {      metadata: {
+
+            hash,        name,
+
+            timestamp: Date.now(),        description,
+
+          },        timestamp: Date.now(),
+
+        },      },
+
+      });    });
+
+    },    return versionHash;
+
+  },
+
+    // Version control operations  
+
+    saveVersion: async (name?: string, description?: string) => {  loadVersion: async (hash) => {
+
+      const workflowData = get().getWorkflowData();    const version = await get().daService.getVersion(hash);
+
+      const metadata = {    if (version && version.data) {
+
+        workflowId: get().currentWorkflow?.id || 'temp',      get().loadWorkflow(version.data);
+
+        data: workflowData,    }
+
+        metadata: {  },
+
+          name,  
+
+          description,  rollbackToVersion: async (hash) => {
+
+          timestamp: Date.now(),    await get().loadVersion(hash);
+
+        },    // Save as new version after rollback
+
+      };    await get().saveVersion('Rollback version');
+
+      const blob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });  },
+
+      return get().daService.submitBlob(blob);  
+
+    },  cloneWorkflow: async (workflowId) => {
+
+        const workflow = await get().daService.getWorkflow(workflowId);
+
+    loadVersion: async (hash: string) => {    if (workflow) {
+
+      const blob = await get().daService.getBlob(hash);      const newId = `${workflowId}-clone-${Date.now()}`;
+
+      if (blob) {      await get().daService.storeWorkflow({
+
+        const text = await blob.text();        ...workflow,
+
+        const version = JSON.parse(text);        id: newId,
+
+        if (version && version.data) {      });
+
+          get().loadWorkflow(version.data);      return newId;
+
+        }    }
+
+      }    throw new Error('Workflow not found');
+
+    },  },
+
+      
+
+    rollbackToVersion: async (hash: string) => {  getVersionHistory: async () => {
+
+      await get().loadVersion(hash);    if (!get().currentWorkflow?.id) {
+
+      // Save as new version after rollback      return [];
+
+      await get().saveVersion('Rollback version');    }
+
+    },    return get().daService.getVersionHistory(get().currentWorkflow.id);
+
+      },
+
+    cloneWorkflow: async (workflowId: string) => {}));
+
+      const newId = `${workflowId}-clone-${Date.now()}`;
+      await get().saveWorkflow(newId);
+      return newId;
+    },
+    
+    getVersionHistory: async () => {
+      if (!get().currentWorkflow?.id) {
+        return [];
+      }
+      // TODO: Implement history tracking with DA service
+      return [];
+    },
+  };
+});

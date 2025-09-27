@@ -1,0 +1,318 @@
+/**
+ * 0G Storage Service
+ * Handles data storage and retrieval on the 0G Storage Network
+ */
+
+import { getZGClient } from './client';
+
+export interface StorageFile {
+  id: string;
+  path: string;
+  hash: string;
+  size: number;
+  contentType: string;
+  metadata?: { [key: string]: any };
+  createdAt: number;
+  updatedAt: number;
+  versions?: StorageVersion[];
+}
+
+export interface StorageVersion {
+  version: string;
+  hash: string;
+  size: number;
+  createdAt: number;
+}
+
+export interface UploadResult {
+  success: boolean;
+  file?: StorageFile;
+  error?: string;
+}
+
+export class ZGStorageService {
+  private client = getZGClient();
+
+  /**
+   * Store data in 0G Storage
+   */
+  async store(params: {
+    path: string;
+    content: string | ArrayBuffer | Blob;
+    contentType?: string;
+    metadata?: { [key: string]: any };
+  }): Promise<UploadResult> {
+    console.log('🗄️ Storing data in 0G Storage Network...');
+    
+    try {
+      // TODO: Replace with actual 0G Storage API call
+      
+      // Simulate content processing
+      let contentStr: string;
+      let size: number;
+      
+      if (typeof params.content === 'string') {
+        contentStr = params.content;
+        size = new Blob([params.content]).size;
+      } else if (params.content instanceof ArrayBuffer) {
+        contentStr = new TextDecoder().decode(params.content);
+        size = params.content.byteLength;
+      } else {
+        contentStr = await params.content.text();
+        size = params.content.size;
+      }
+      
+      // Generate hash (simplified - would use proper hashing in real implementation)
+      const hash = `0x${btoa(contentStr).replace(/[^a-zA-Z0-9]/g, '').substring(0, 64)}`;
+      
+      // Simulate storage delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const file: StorageFile = {
+        id: `storage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        path: params.path,
+        hash,
+        size,
+        contentType: params.contentType || 'text/plain',
+        metadata: params.metadata,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      console.log('✅ Data stored successfully:', file.id);
+      return {
+        success: true,
+        file,
+      };
+      
+    } catch (error) {
+      console.error('❌ Storage operation failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown storage error',
+      };
+    }
+  }
+
+  /**
+   * Retrieve data from 0G Storage
+   */
+  async retrieve(params: {
+    path?: string;
+    hash?: string;
+    version?: string;
+  }): Promise<{ success: boolean; content?: string; file?: StorageFile; error?: string }> {
+    console.log('📥 Retrieving data from 0G Storage Network...');
+    
+    try {
+      // TODO: Replace with actual 0G Storage API call
+      
+      // Simulate retrieval delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Simulate successful retrieval
+      const file: StorageFile = {
+        id: `storage-retrieved-${Date.now()}`,
+        path: params.path || 'unknown',
+        hash: params.hash || '0xsamplehash',
+        size: 1024,
+        contentType: 'text/plain',
+        createdAt: Date.now() - 3600000, // 1 hour ago
+        updatedAt: Date.now() - 3600000,
+      };
+      
+      const content = `Retrieved content from 0G Storage Network
+Path: ${params.path || 'N/A'}
+Hash: ${params.hash || 'N/A'}
+Version: ${params.version || 'latest'}
+
+This is placeholder content that would be retrieved from 0G Storage.`;
+
+      console.log('✅ Data retrieved successfully');
+      return {
+        success: true,
+        content,
+        file,
+      };
+      
+    } catch (error) {
+      console.error('❌ Retrieval operation failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown retrieval error',
+      };
+    }
+  }
+
+  /**
+   * List files in a directory
+   */
+  async listFiles(path: string = '/'): Promise<{ success: boolean; files?: StorageFile[]; error?: string }> {
+    console.log(`📋 Listing files in 0G Storage: ${path}`);
+    
+    try {
+      // TODO: Replace with actual 0G Storage API call
+      
+      // Simulate listing delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Simulate file listing
+      const files: StorageFile[] = [
+        {
+          id: 'file-1',
+          path: `${path}/workflow-data.json`,
+          hash: '0xabc123',
+          size: 2048,
+          contentType: 'application/json',
+          createdAt: Date.now() - 7200000, // 2 hours ago
+          updatedAt: Date.now() - 3600000, // 1 hour ago
+        },
+        {
+          id: 'file-2',
+          path: `${path}/ai-results.txt`,
+          hash: '0xdef456',
+          size: 1024,
+          contentType: 'text/plain',
+          createdAt: Date.now() - 1800000, // 30 minutes ago
+          updatedAt: Date.now() - 1800000,
+        },
+      ];
+
+      console.log(`✅ Listed ${files.length} files`);
+      return {
+        success: true,
+        files,
+      };
+      
+    } catch (error) {
+      console.error('❌ File listing failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown listing error',
+      };
+    }
+  }
+
+  /**
+   * Delete a file from storage
+   */
+  async delete(params: {
+    path?: string;
+    hash?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    console.log('🗑️ Deleting file from 0G Storage Network...');
+    
+    try {
+      // TODO: Replace with actual 0G Storage API call
+      
+      // Simulate deletion delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ File deleted successfully');
+      return { success: true };
+      
+    } catch (error) {
+      console.error('❌ File deletion failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown deletion error',
+      };
+    }
+  }
+
+  /**
+   * Get file metadata and version history
+   */
+  async getFileInfo(params: {
+    path?: string;
+    hash?: string;
+  }): Promise<{ success: boolean; file?: StorageFile; error?: string }> {
+    console.log('ℹ️ Getting file info from 0G Storage Network...');
+    
+    try {
+      // TODO: Replace with actual 0G Storage API call
+      
+      // Simulate info retrieval delay
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const file: StorageFile = {
+        id: 'file-info',
+        path: params.path || 'unknown',
+        hash: params.hash || '0xsamplehash',
+        size: 1024,
+        contentType: 'text/plain',
+        metadata: {
+          author: 'FlowG User',
+          tags: ['workflow', 'ai', '0g-network'],
+          description: 'Workflow data stored on 0G Storage',
+        },
+        createdAt: Date.now() - 3600000,
+        updatedAt: Date.now() - 1800000,
+        versions: [
+          {
+            version: 'v1.0',
+            hash: '0xversion1hash',
+            size: 512,
+            createdAt: Date.now() - 3600000,
+          },
+          {
+            version: 'v1.1',
+            hash: '0xversion2hash',
+            size: 1024,
+            createdAt: Date.now() - 1800000,
+          },
+        ],
+      };
+
+      console.log('✅ File info retrieved successfully');
+      return {
+        success: true,
+        file,
+      };
+      
+    } catch (error) {
+      console.error('❌ File info retrieval failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown info retrieval error',
+      };
+    }
+  }
+
+  /**
+   * Create a new version of an existing file
+   */
+  async createVersion(params: {
+    path: string;
+    content: string | ArrayBuffer | Blob;
+    versionNote?: string;
+  }): Promise<{ success: boolean; file?: StorageFile; error?: string }> {
+    console.log('📝 Creating new version in 0G Storage Network...');
+    
+    try {
+      // TODO: Replace with actual 0G Storage API call
+      
+      // For now, this is similar to store but with version tracking
+      const storeResult = await this.store({
+        path: params.path,
+        content: params.content,
+        metadata: {
+          versionNote: params.versionNote,
+          isNewVersion: true,
+        },
+      });
+      
+      return storeResult;
+      
+    } catch (error) {
+      console.error('❌ Version creation failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown version creation error',
+      };
+    }
+  }
+}
+
+// Export singleton instance
+export const zgStorageService = new ZGStorageService();
