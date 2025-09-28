@@ -1,16 +1,16 @@
 export const nodeTheme = {
   base: {
-    container: 'relative min-w-[200px] rounded-lg border bg-white transition-all duration-200',
-    header: 'flex items-center p-3 border-b border-slate-100',
-    icon: 'flex items-center justify-center w-7 h-7 rounded text-white mr-2',
-    title: 'font-medium text-sm text-slate-900 truncate',
-    description: 'text-xs text-slate-500 truncate mt-0.5',
+    container: 'relative min-w-[180px] border-2 bg-white transition-all duration-200',
+    header: 'flex items-center p-3 border-b border-gray-200',
+    icon: 'w-4 h-4 bg-black mr-3 flex items-center justify-center',
+    title: 'font-black text-sm text-black',
+    description: 'text-xs text-gray-600 font-light mt-0.5',
     content: 'p-3',
   },
   handle: {
-    base: 'w-2 h-2 border border-slate-300 bg-white rounded-full hover:border-slate-400 transition-colors',
-    input: 'left-[-4px]',
-    output: 'right-[-4px]',
+    base: 'w-3 h-3 border-2 border-gray-400 bg-white hover:border-black transition-colors',
+    input: 'left-[-6px]',
+    output: 'right-[-6px]',
   },
   status: {
     idle: {

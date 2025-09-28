@@ -17,25 +17,20 @@ export default function AIComputeNode(props: NodeProps<WorkflowNode>) {
   return (
     <BaseNode
       {...props}
-      icon={<Brain size={16} />}
-      color="bg-purple-500"
     >
-      <div className="space-y-2 text-xs">
-        <div>
-          <span className="font-medium">Operation:</span> {config.operation || 'process'}
-        </div>
-        <div>
-          <span className="font-medium">Model:</span> {config.model || defaultModel}
-        </div>
-        {config.prompt && (
-          <div>
-            <span className="font-medium">Prompt:</span>
-            <div className="mt-1 p-2 bg-slate-50 rounded text-xs">
-              {config.prompt.substring(0, 100)}
-              {config.prompt.length > 100 && '...'}
-            </div>
+        <div className="space-y-1">
+          <div className="text-gray-600">
+            {config.operation || 'process'}
           </div>
-        )}
+          <div className="text-gray-600">
+            {config.model || defaultModel}
+          </div>
+          {config.prompt && (
+            <div className="mt-2 p-2 bg-gray-50 border border-gray-200 text-gray-700">
+              {config.prompt.substring(0, 80)}
+              {config.prompt.length > 80 && '...'}
+            </div>
+          )}
       </div>
     </BaseNode>
   );

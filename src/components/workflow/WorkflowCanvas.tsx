@@ -49,14 +49,21 @@ function Flow() {
   const { screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const { isExecuting, setNodes: setStoreNodes, setEdges: setStoreEdges } = useWorkflowStore();
+
+  // Sync React Flow nodes/edges to Zustand store
+  useEffect(() => {
+    setStoreNodes(nodes);
+  }, [nodes, setStoreNodes]);
+  useEffect(() => {
+    setStoreEdges(edges);
+  }, [edges, setStoreEdges]);
 
   // Enhanced onNodesChange with logging
   const handleNodesChange = useCallback((changes: any) => {
     console.log('React Flow nodes changing:', changes);
     onNodesChange(changes);
   }, [onNodesChange]);
-  
-  const { isExecuting } = useWorkflowStore();
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -129,7 +136,7 @@ function Flow() {
   return (
     <div 
       ref={reactFlowWrapper} 
-      className="w-full h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 relative" 
+      className="w-full h-[calc(100vh-4rem)] bg-gray-50 relative border-l border-gray-200" 
       style={{ minHeight: '600px' }}
     >
       <ReactFlow
@@ -153,60 +160,77 @@ function Flow() {
         nodesDraggable={true}
         nodesConnectable={true}
         defaultEdgeOptions={{
-          type: 'smoothstep',
+          type: 'straight',
           animated: true,
-          style: { stroke: '#6366f1', strokeWidth: 2 },
+          style: { 
+            stroke: '#000000', 
+            strokeWidth: 2,
+            strokeDasharray: '8 4',
+          },
         }}
-        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+        connectionLineStyle={{ 
+          stroke: '#000000', 
+          strokeWidth: 2,
+          strokeDasharray: '8 4'
+        }}
         snapToGrid={true}
         snapGrid={[15, 15]}
       >
-        <Background 
-          variant={BackgroundVariant.Dots} 
-          gap={20} 
-          size={1.5} 
-          color="#cbd5e1"
-          className="opacity-60"
+        {/* Minimal background pattern */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(circle, #d1d5db 0.5px, transparent 0.5px)`,
+            backgroundSize: '24px 24px',
+            opacity: 0.3
+          }}
         />
         <Controls 
-          className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg"
+          className="bg-white border border-gray-300 shadow-sm"
           position="top-right"
-          style={{ top: 20, right: 20 }}
+          style={{ top: 16, right: 16 }}
         />
         <MiniMap 
-          nodeStrokeColor="#6366f1"
-          nodeColor="#a5b4fc"
-          nodeBorderRadius={12}
-          maskColor="rgba(100, 116, 139, 0.1)"
-          className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg"
+          nodeStrokeColor="#000000"
+          nodeColor="#f3f4f6"
+          nodeBorderRadius={0}
+          maskColor="rgba(0, 0, 0, 0.1)"
+          className="bg-white border border-gray-300 shadow-sm"
           position="bottom-right"
-          style={{ bottom: 20, right: 20 }}
+          style={{ bottom: 16, right: 16, width: 160, height: 120 }}
         />
         
-        <Panel position="top-left" className="bg-white/90 backdrop-blur-md border border-slate-200 p-6 rounded-2xl shadow-xl" style={{ top: 20, left: 20 }}>
+        <Panel position="top-left" className="bg-white border border-gray-300 p-4 shadow-sm max-w-xs" style={{ top: 16, left: 16 }}>
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">F</span>
+              <div className="w-6 h-6 bg-black flex items-center justify-center">
+                <span className="text-white italic text-sm font-regular">FG</span>
               </div>
-              <h3 className="font-bold text-lg text-slate-900">FlowG Workflow Builder</h3>
+              <div>
+                <h3 className="font-black text-sm text-black">FlowG</h3>
+                <p className="text-xs text-gray-600 font-light">workflow builder</p>
+              </div>
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Drag nodes from the sidebar to build your AI workflow
-            </p>
+            
+            <div className="space-y-1 text-xs text-gray-600 font-light">
+              <div>{nodes.length} nodes</div>
+              <div>{edges.length} connections</div>
+            </div>
+            
             {isExecuting && (
-              <div className="flex items-center space-x-3 mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
-                <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-blue-700">Workflow executing on 0G Network...</span>
+              <div className="flex items-center space-x-2 pt-2 border-t border-gray-200">
+                <div className="w-2 h-2 bg-black rounded-full animate-pulse"></div>
+                <span className="text-xs text-black font-light">executing...</span>
               </div>
             )}
           </div>
         </Panel>
       </ReactFlow>
       
-      {/* Decorative elements */}
-      <div className="absolute top-4 right-4 w-32 h-32 bg-gradient-to-br from-violet-200/20 to-purple-200/20 rounded-full blur-xl pointer-events-none"></div>
-      <div className="absolute bottom-10 left-10 w-24 h-24 bg-gradient-to-br from-blue-200/20 to-indigo-200/20 rounded-full blur-xl pointer-events-none"></div>
+      {/* Minimal decorative element */}
+      <div className="absolute bottom-4 left-4 text-xs text-gray-400 font-light pointer-events-none">
+        powered by 0g network
+      </div>
     </div>
   );
 }

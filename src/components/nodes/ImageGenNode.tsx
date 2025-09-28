@@ -12,8 +12,6 @@ export default function ImageGenNode(props: NodeProps<WorkflowNode>) {
   return (
     <BaseNode
       {...props}
-      icon={<ImageIcon size={16} />}
-      color="bg-pink-500"
     >
       <div className="space-y-2 text-xs">
         <div>

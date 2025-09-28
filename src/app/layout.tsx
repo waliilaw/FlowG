@@ -1,20 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "FlowG - AI Workflow Builder",
-  description: "Build sophisticated AI workflows using drag-and-drop interface powered by 0G Network",
+  title: "FlowG - Minimalist AI Workflow Builder",
+  description: "Build sophisticated AI workflows using a clean, minimalist interface powered by 0G Network",
 };
 
 export default function RootLayout({
@@ -24,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
-      >
+      <body className="antialiased h-full bg-white text-black">
         {children}
       </body>
     </html>

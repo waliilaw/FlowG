@@ -12,8 +12,6 @@ export default function InputNode(props: NodeProps<WorkflowNode>) {
   return (
     <BaseNode
       {...props}
-      icon={<ArrowDown size={16} />}
-      color="bg-indigo-500"
     >
       <div className="space-y-2 text-xs">
         <div>

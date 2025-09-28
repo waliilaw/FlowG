@@ -14,8 +14,6 @@ export default function ChainInteractionNode(props: NodeProps<WorkflowNode>) {
   return (
     <BaseNode
       {...props}
-      icon={<Link size={16} />}
-      color="bg-green-500"
     >
       <div className="space-y-2 text-xs">
         <div>

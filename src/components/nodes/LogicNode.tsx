@@ -12,8 +12,6 @@ export default function LogicNode(props: NodeProps<WorkflowNode>) {
   return (
     <BaseNode
       {...props}
-      icon={<GitBranch size={16} />}
-      color="bg-orange-500"
     >
       <div className="space-y-2 text-xs">
         <div>

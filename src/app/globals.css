@@ -1,5 +1,38 @@
-/* React Flow styles */
+/* React Flow styles - must be imported first */
 @import '@xyflow/react/dist/style.css';
+
+/* Custom Fonts */
+@font-face {
+  font-family: 'CustomFont';
+  src: url('/font/UltraLight.woff2') format('woff2');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CustomFont';
+  src: url('/font/Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CustomFont';
+  src: url('/font/Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CustomFont';
+  src: url('/font/UltraBold.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -57,7 +90,9 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+    font-family: 'CustomFont', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -131,10 +166,48 @@
   stroke: #9ca3af;
 }
 
+/* Font weight utilities */
+.font-ultralight { font-weight: 200; }
+.font-light { font-weight: 400; }
+.font-bold { font-weight: 700; }
+.font-black { font-weight: 900; }
+
+/* Minimal design overrides */
+.minimal-input {
+  border: 1px solid #d1d5db;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.minimal-input:focus {
+  outline: none;
+  border-color: #000000;
+}
+
+.minimal-button {
+  border: 1px solid #d1d5db;
+  background: white;
+  transition: all 0.2s;
+}
+
+.minimal-button:hover {
+  background: #f9fafb;
+}
+
+.minimal-button-primary {
+  background: #000000;
+  color: white;
+  border: 1px solid #000000;
+}
+
+.minimal-button-primary:hover {
+  background: #374151;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -143,9 +216,29 @@
 
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Animated dotted connections */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.react-flow__edge-path {
+  animation: dash 1s linear infinite;
+}
+
+/* Node patterns animation on hover */
+.node-pattern-hover:hover svg {
+  animation: pattern-pulse 0.5s ease-in-out;
+}
+
+@keyframes pattern-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }

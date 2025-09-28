@@ -1,262 +1,220 @@
 import { create } from 'zustand';
-import { Node, Edge, NodeChange, EdgeChange, Connection } from '@xyflow/react';
+import { 
+  Node,
+  Edge,
+  addEdge,
+  applyNodeChanges, 
+  applyEdgeChanges,
+  NodeChange,
+  EdgeChange,
+  Connection
+} from '@xyflow/react';
+import { WorkflowNode, WorkflowState, ExecutionLogEntry, NodeStatus } from '@/types/workflow';
+import WorkflowExecutionEngine from '@/lib/workflow-execution';
+import { WorkflowPersistenceService, SavedWorkflow } from '@/lib/workflow-persistence';
+import { WorkflowVersionManager } from '@/lib/workflow-version';
+import { DAService } from '@/lib/0g/da-service';
 
-interface WorkflowVersion {
+// Workflow version info type
+export interface WorkflowVersionInfo {
   id: string;
-  version: number;
-  metadata: any;
+  version: string;
   hash: string;
   timestamp: number;
-  name: string;
-  description: string;
-  data: WorkflowData;
+  metadata?: {
+    author?: string;
+    description?: string;
+    changes?: string[];
+  };
 }
 
-interface WorkflowData {
-  nodes: Node[];
-  edges: Edge[];
-}
-
-interface CurrentWorkflow extends WorkflowData {
-  name?: string;
-  timestamp?: number;
-  versions?: WorkflowVersion[];
-  currentVersion?: WorkflowVersion;
-}
-
-interface NodeState {
-  nodes: Node[];
-  edges: Edge[];
-  isExecuting: boolean;
-  executionLog: any[];
-  currentWorkflow: CurrentWorkflow | null;
-}
-
-interface NodeActions {
-  addNode: (node: Node) => void;
-  removeNode: (id: string) => void;
-  updateNode: (id: string, data: any) => void;
-  updateStoreNodes: (nodes: Node[]) => void;
-  updateStoreEdges: (edges: Edge[]) => void;
-  onNodesChange: (changes: NodeChange[]) => void;
-  addEdge: (edge: Edge) => void;
-  removeEdge: (id: string) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  onConnect: (connection: Connection) => void;
-  saveWorkflow: (name: string) => Promise<void>;
-  loadWorkflow: (workflow: CurrentWorkflow) => void;
-  getWorkflowData: () => WorkflowData;
-  clearWorkflow: () => void;
-  executeWorkflow: (inputs?: any) => Promise<void>;
-  startExecution: () => void;
-  stopExecution: () => void;
-  saveVersion: (name?: string, description?: string) => Promise<void>;
+// Version control operations
+export interface VersionOps {
+  saveVersion: (name?: string, description?: string) => Promise<string>;
   loadVersion: (hash: string) => Promise<void>;
   rollbackToVersion: (hash: string) => Promise<void>;
-  getVersionHistory: () => Promise<WorkflowVersion[]>;
+  cloneWorkflow: (workflowId: string) => Promise<string>;
+  getVersionHistory: () => Promise<WorkflowVersionInfo[]>;
 }
 
-type WorkflowStore = NodeState & NodeActions;
+// Store interface
+export interface WorkflowStore extends WorkflowState, VersionOps {
+  // Workflow state
+  nodes: WorkflowNode[];
+  edges: Edge[];
+  isExecuting: boolean;
+  executionLog: ExecutionLogEntry[];
+  
+  // Current workflow
+  currentWorkflow?: SavedWorkflow;
+  
+  // Node operations
+  addNode: (node: WorkflowNode) => void;
+  removeNode: (nodeId: string) => void;
+  updateNode: (nodeId: string, updates: Partial<WorkflowNode['data']>) => void;
+  onNodesChange: (changes: NodeChange[]) => void;
+  
+  // Edge operations
+  addEdge: (edge: Edge) => void;
+  removeEdge: (edgeId: string) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
+  onConnect: (connection: Connection) => void;
+  
+  // Execution operations
+  executeWorkflow: (inputs?: Record<string, any>) => Promise<void>;
+  startExecution: () => void;
+  stopExecution: () => void;
+  updateNodeStatus: (nodeId: string, status: NodeStatus, message?: string, data?: any) => void;
+  addExecutionLog: (entry: ExecutionLogEntry) => void;
+  clearExecutionLog: () => void;
+  
+  // Workflow operations
+  clearWorkflow: () => void;
+  loadWorkflow: (workflow: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
+  getWorkflowData: () => { nodes: WorkflowNode[]; edges: Edge[] };
+  saveWorkflow: (name: string) => Promise<void>;
+}
 
-const initialState: NodeState = {
+// Initialize services
+const versionManager = new WorkflowVersionManager();
+
+// Create store
+export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: [],
   edges: [],
   isExecuting: false,
   executionLog: [],
-  currentWorkflow: null,
-};
 
-export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
-  ...initialState,
+  // Current workflow data
+  currentWorkflow: undefined,
 
+
+  // Node operations
+  setNodes: (nodes: WorkflowNode[]) => {
+    set(() => ({ nodes }));
+  },
+  setEdges: (edges: Edge[]) => {
+    set(() => ({ edges }));
+  },
   addNode: (node) => {
-    console.log('Adding node to store:', node);
-    set((state) => {
-      const newNodes = [...state.nodes, node];
-      console.log('New nodes state:', newNodes);
-      return { nodes: newNodes };
-    });
-  },
-
-  removeNode: (id) => {
     set((state) => ({
-      nodes: state.nodes.filter((n) => n.id !== id),
-      edges: state.edges.filter((e) => e.source !== id && e.target !== id),
+      nodes: [...state.nodes, node],
     }));
   },
 
-  updateNode: (id, data) => {
+  removeNode: (nodeId) => {
     set((state) => ({
-      nodes: state.nodes.map((n) => (n.id === id ? { ...n, data } : n)),
+      nodes: state.nodes.filter((n) => n.id !== nodeId),
     }));
   },
 
-  updateStoreNodes: (nodes) => {
-    set({ nodes });
-  },
-
-  updateStoreEdges: (edges) => {
-    set({ edges });
-  },
-
-  onNodesChange: (changes) => {
-    console.log('Handling node changes:', changes);
+  updateNode: (nodeId, updates) => {
     set((state) => ({
-      nodes: changes.reduce((acc, change) => {
-        console.log('Processing change:', change);
-        let nodes = [...acc];
-
-        switch (change.type) {
-          case 'add':
-            return [...nodes, change.item];
-          
-          case 'remove':
-            return nodes.filter((n) => n.id !== change.id);
-          
-          case 'select':
-            return nodes.map((n) => 
-              n.id === change.id ? { ...n, selected: change.selected } : n
-            );
-          
-          case 'position':
-            if (change.position) {
-              console.log('Updating node position:', change.id, change.position);
-              return nodes.map((n) =>
-                n.id === change.id
-                  ? {
-                      ...n,
-                      position: change.position!,
-                      ...(change.positionAbsolute && { positionAbsolute: change.positionAbsolute })
-                    }
-                  : n
-              );
-            }
-            console.warn('Position change without position data:', change);
-            return nodes;
-          
-          case 'dimensions':
-            if (change.dimensions) {
-              return nodes.map((n) =>
-                n.id === change.id
-                  ? {
-                      ...n,
-                      measured: {
-                        width: change.dimensions!.width,
-                        height: change.dimensions!.height,
-                      },
-                    }
-                  : n
-              );
-            }
-            return nodes;
-          
-          case 'replace':
-            return nodes.map((n) => 
-              n.id === change.id ? change.item : n
-            );
-          
-          default:
-            console.warn(`Unhandled node change type: ${(change as any).type}`);
-            return nodes;
-        }
-      }, state.nodes),
+      nodes: state.nodes.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, ...updates } }
+          : node
+      ),
     }));
   },
 
+  onNodesChange: (changes : any ) => {
+    set((state ) => ({
+      nodes: applyNodeChanges(changes, state.nodes),
+    }));
+  },
+
+  // Edge operations
   addEdge: (edge) => {
     set((state) => ({
-      edges: [...state.edges, edge],
+      edges: addEdge(edge, state.edges),
     }));
   },
 
-  removeEdge: (id) => {
+  removeEdge: (edgeId) => {
     set((state) => ({
-      edges: state.edges.filter((e) => e.id !== id),
+      edges: state.edges.filter((e) => e.id !== edgeId),
     }));
   },
 
   onEdgesChange: (changes) => {
     set((state) => ({
-      edges: changes.reduce((acc, change) => {
-        let edges = [...acc];
-
-        switch (change.type) {
-          case 'add':
-            return [...edges, change.item];
-          
-          case 'remove':
-            return edges.filter((e) => e.id !== change.id);
-          
-          case 'select':
-            return edges.map((e) => 
-              e.id === change.id ? { ...e, selected: change.selected } : e
-            );
-          
-          case 'replace':
-            return edges.map((e) => 
-              e.id === change.id ? change.item : e
-            );
-          
-          default:
-            console.warn(`Unhandled edge change type: ${(change as any).type}`);
-            return edges;
-        }
-      }, state.edges),
+      edges: applyEdgeChanges(changes, state.edges),
     }));
   },
 
   onConnect: (connection) => {
-    const edge: Edge = {
-      id: `e${connection.source}-${connection.target}`,
-      source: connection.source || '',
-      target: connection.target || '',
-    };
-    get().addEdge(edge);
+    set((state) => ({
+      edges: addEdge(connection, state.edges),
+    }));
   },
 
-  saveWorkflow: async (name) => {
-    const data = get().getWorkflowData();
-    set({
-      currentWorkflow: {
-        name,
-        ...data,
-        timestamp: Date.now(),
-      },
-    });
-  },
-
-  loadWorkflow: (workflow) => {
-    set({
-      nodes: workflow.nodes || [],
-      edges: workflow.edges || [],
-      currentWorkflow: workflow,
-    });
-  },
-
-  getWorkflowData: () => {
-    const { nodes, edges } = get();
-    return { nodes, edges };
-  },
-
-  clearWorkflow: () => {
-    set({
-      nodes: [],
-      edges: [],
-      currentWorkflow: null,
-    });
-  },
-
+  // Execution operations
   executeWorkflow: async (inputs) => {
+    console.log('🚀 Starting workflow execution...');
     set({ isExecuting: true });
+    
     try {
-      const nodes = get().nodes;
-      for (const node of nodes) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { nodes, edges } = get();
+      
+      if (nodes.length === 0) {
+        console.log('❌ No nodes to execute');
+        alert('Please add some nodes to your workflow first!');
+        set({ isExecuting: false });
+        return;
       }
+      
+      console.log(`📊 Executing workflow with ${nodes.length} nodes and ${edges.length} connections`);
+      
+      // Execute each node with visual feedback
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        console.log(`⚡ Executing node: ${node.data.label} (${node.type})`);
+        
+        // Update node status to running
+        set((state) => ({
+          nodes: state.nodes.map(n => 
+            n.id === node.id 
+              ? { ...n, data: { ...n.data, status: 'running' } }
+              : n
+          )
+        }));
+        
+        // Simulate processing time based on node type
+        const processingTime = node.type === 'ai-compute' ? 3000 : 1500;
+        await new Promise((resolve) => setTimeout(resolve, processingTime));
+        
+        // Update node status to completed
+        set((state) => ({
+          nodes: state.nodes.map(n => 
+            n.id === node.id 
+              ? { ...n, data: { ...n.data, status: 'completed' } }
+              : n
+          )
+        }));
+        
+        console.log(`✅ Completed node: ${node.data.label}`);
+      }
+      
+      console.log('🎉 Workflow execution completed successfully!');
+      alert('🎉 Workflow executed successfully! Check the console for details.');
+      
     } catch (error) {
-      console.error('Execution error:', error);
+      console.error('❌ Execution error:', error);
+      alert('❌ Workflow execution failed! Check the console for details.');
+    } finally {
+      set({ isExecuting: false });
+      
+      // Reset all node statuses after a delay
+      setTimeout(() => {
+        set((state) => ({
+          nodes: state.nodes.map(n => ({ 
+            ...n, 
+            data: { ...n.data, status: 'idle' } 
+          }))
+        }));
+      }, 3000);
     }
-    set({ isExecuting: false });
   },
 
   startExecution: () => {
@@ -267,45 +225,180 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isExecuting: false });
   },
 
-  saveVersion: async (name = 'Untitled', description = '') => {
-    const data = get().getWorkflowData();
-    const version: WorkflowVersion = {
-      id: Math.random().toString(36).substring(7),
-      version: Date.now(),
-      metadata: {},
-      hash: Math.random().toString(36).substring(7),
-      timestamp: Date.now(),
-      name,
-      description,
-      data,
-    };
-    const workflow = get().currentWorkflow || { nodes: [], edges: [] };
-    const versions = [...(workflow.versions || []), version];
-    set({
-      currentWorkflow: {
-        ...workflow,
-        versions,
-        currentVersion: version,
-      },
-    });
-  },
-
-  loadVersion: async (hash) => {
-    const workflow = get().currentWorkflow;
-    if (!workflow?.versions) return;
-    const version = workflow.versions.find((v) => v.hash === hash);
-    if (version?.data) {
-      get().loadWorkflow({ ...workflow, ...version.data });
+  updateNodeStatus: (nodeId, status, message, data) => {
+    const { updateNode, addExecutionLog } = get();
+    
+    updateNode(nodeId, { status, outputs: data });
+    
+    if (message) {
+      addExecutionLog({
+        nodeId,
+        timestamp: Date.now(),
+        status,
+        message,
+        data,
+      });
     }
   },
 
-  rollbackToVersion: async (hash) => {
-    await get().loadVersion(hash);
-    await get().saveVersion('Rollback version');
+  addExecutionLog: (entry) => {
+    set((state) => ({
+      executionLog: [...state.executionLog, entry],
+    }));
+  },
+
+  clearExecutionLog: () => {
+    set({ executionLog: [] });
+  },
+
+  // Workflow operations
+  clearWorkflow: () => {
+    set({
+      nodes: [],
+      edges: [],
+      isExecuting: false,
+      executionLog: [],
+    });
+  },
+
+  loadWorkflow: (workflow) => {
+    set({
+      nodes: workflow.nodes,
+      edges: workflow.edges,
+      isExecuting: false,
+      executionLog: [],
+    });
+  },
+
+  getWorkflowData: () => {
+    const { nodes, edges } = get();
+    return { nodes, edges };
+  },
+
+  saveWorkflow: async (name: string) => {
+    const { nodes, edges } = get();
+    const workflowData = {
+      name,
+      nodes,
+      edges,
+      createdAt: Date.now(),
+    };
+    
+    try {
+      // Save to localStorage for now
+      const savedWorkflows = JSON.parse(localStorage.getItem('flowg-workflows') || '[]');
+      savedWorkflows.push(workflowData);
+      localStorage.setItem('flowg-workflows', JSON.stringify(savedWorkflows));
+      
+      // Add to log
+      get().addExecutionLog({
+        nodeId: 'system',
+        timestamp: Date.now(),
+        status: 'completed',
+        message: `💾 Workflow "${name}" saved successfully`,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate async save
+    } catch (error) {
+      console.error('Failed to save workflow:', error);
+      throw error;
+    }
+  },
+
+  // Version control operations
+  saveVersion: async (name?: string, description?: string) => {
+    const state = get();
+    const version = {
+      workflowId: state.currentWorkflow?.id || 'temp',
+      version: Date.now().toString(),
+      hash: '',
+      timestamp: Date.now(),
+      metadata: {
+        author: 'user',
+        description: description || `Version created at ${new Date().toLocaleString()}`,
+        changes: name ? [`Named version: ${name}`] : undefined
+      },
+      nodes: state.nodes,
+      edges: state.edges
+    };
+
+    try {
+      const hash = await versionManager.saveVersion(version.workflowId, version);
+      return hash;
+    } catch (error) {
+      console.error('Failed to save version:', error);
+      throw error;
+    }
+  },
+
+  loadVersion: async (hash: string) => {
+    try {
+      const versions = await versionManager.getVersions(get().currentWorkflow?.id || '');
+      const version = versions.find(v => v.hash === hash);
+      if (!version) {
+        throw new Error('Version not found');
+      }
+
+      get().loadWorkflow(version);
+    } catch (error) {
+      console.error('Failed to load version:', error);
+      throw error;
+    }
+  },
+
+  rollbackToVersion: async (hash: string) => {
+    try {
+      // First load the version
+      await get().loadVersion(hash);
+      
+      // Then save it as the latest
+      await get().saveVersion(undefined, 'Rollback to previous version');
+    } catch (error) {
+      console.error('Failed to rollback version:', error);
+      throw error;
+    }
+  },
+
+  cloneWorkflow: async (workflowId: string) => {
+    try {
+      const versions = await versionManager.getVersions(workflowId);
+      if (!versions.length) {
+        throw new Error('No versions found for workflow');
+      }
+
+      // Load the latest version
+      const latest = versions[versions.length - 1];
+      get().loadWorkflow(latest);
+
+      // Save as new workflow
+      const newId = `${workflowId}-clone-${Date.now()}`;
+      await get().saveVersion(newId, `Cloned from ${workflowId}`);
+
+      return newId;
+    } catch (error) {
+      console.error('Failed to clone workflow:', error);
+      throw error;
+    }
   },
 
   getVersionHistory: async () => {
-    const workflow = get().currentWorkflow;
-    return workflow?.versions || [];
-  },
+    try {
+      const state = get();
+      if (!state.currentWorkflow?.id) {
+        return [];
+      }
+
+      const versions = await versionManager.getVersions(state.currentWorkflow.id);
+      return versions.map(v => ({
+        id: v.workflowId,
+        version: v.version,
+        hash: v.hash,
+        timestamp: v.timestamp,
+        metadata: v.metadata
+      }));
+    } catch (error) {
+      console.error('Failed to get version history:', error);
+      return [];
+    }
+  }
 }));

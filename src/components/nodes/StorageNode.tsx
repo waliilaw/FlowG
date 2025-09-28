@@ -12,8 +12,6 @@ export default function StorageNode(props: NodeProps<WorkflowNode>) {
   return (
     <BaseNode
       {...props}
-      icon={<Database size={16} />}
-      color="bg-blue-500"
     >
       <div className="space-y-2 text-xs">
         <div>
