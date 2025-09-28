@@ -39,6 +39,8 @@ export interface VersionOps {
 
 // Store interface
 export interface WorkflowStore extends WorkflowState, VersionOps {
+  setNodes: (nodes: WorkflowNode[]) => void;
+  setEdges: (edges: Edge[]) => void;
   // Workflow state
   nodes: WorkflowNode[];
   edges: Edge[];
@@ -119,7 +121,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
 
   onNodesChange: (changes : any ) => {
-    set((state ) => ({
+    set((state) => ({
       nodes: applyNodeChanges(changes, state.nodes),
     }));
   },

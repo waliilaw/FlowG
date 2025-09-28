@@ -21,7 +21,20 @@ export default function VersionPanel() {
     const loadVersions = async () => {
       try {
         const history = await getVersionHistory();
-        setVersions(history.reverse()); // Show newest first
+        setVersions(
+          history
+            .map(v => ({
+              ...v,
+              version: Number(v.version),
+              metadata: {
+                author: v.metadata?.author || '',
+                description: v.metadata?.description,
+                changes: v.metadata?.changes,
+                ...v.metadata
+              }
+            }))
+            .reverse()
+        ); // Show newest first
         setError(undefined);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to load versions');

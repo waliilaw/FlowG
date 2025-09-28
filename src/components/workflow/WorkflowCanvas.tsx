@@ -53,7 +53,7 @@ function Flow() {
 
   // Sync React Flow nodes/edges to Zustand store
   useEffect(() => {
-    setStoreNodes(nodes);
+    setStoreNodes(nodes as any); // Cast to WorkflowNode[] for type compatibility
   }, [nodes, setStoreNodes]);
   useEffect(() => {
     setStoreEdges(edges);
